@@ -49,7 +49,7 @@ class OCRThread(QThread):
 
         black_image = keep_black_only(image)
 
-        raw_text = pytesseract.image_to_data(black_image, config=r'--oem 3 --psm 4', lang='rus+eng', output_type=pytesseract.Output.DICT)
+        raw_text = pytesseract.image_to_data(black_image, config=r'--oem 3 --psm 4', lang='rus+eng+gre', output_type=pytesseract.Output.DICT)
 
         blocks = []
         current_block = []
