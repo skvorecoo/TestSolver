@@ -1,4 +1,4 @@
-import pytesseract, mss, requests, re, os, time, threading
+import pytesseract, mss, requests, re, os, time, threading, sys
 from PIL import Image
 from bs4 import BeautifulSoup
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
@@ -8,7 +8,9 @@ from PyQt6.QtGui import QIcon
 workingDir = os.path.dirname(os.path.abspath(__file__))
 
 pytesseract.pytesseract.tesseract_cmd = workingDir + "/tesseract" + "/tesseract.exe"
-os.environ['TESSDATA_PREFIX'] = workingDir + "/tesseract"
+
+if getattr(sys, 'frozen', False): 
+    os.environ['TESSDATA_PREFIX'] = workingDir + "/tesseract"
 
 questions_answers = {}
 
