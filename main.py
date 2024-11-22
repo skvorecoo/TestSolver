@@ -1,4 +1,4 @@
-import pytesseract, mss, requests, re, os, time, threading, sys
+import pytesseract, mss, requests, re, os, time, threading, sys, pyautogui
 from PIL import Image
 from bs4 import BeautifulSoup
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
@@ -43,7 +43,7 @@ class OCRThread(QThread):
     show_warning_signal = pyqtSignal(str)
 
     def run(self):
-        global attempts, finded
+        global attempts, finded, raw_text
         with mss.mss() as sct:
             # Скриншот всего экрана
             screenshot = sct.grab(sct.monitors[1])
@@ -51,7 +51,7 @@ class OCRThread(QThread):
 
         black_image = keep_black_only(image)
 
-        raw_text = pytesseract.image_to_data(black_image, config=r'--oem 3 --psm 4', lang='rus+eng+gre', output_type=pytesseract.Output.DICT)
+        raw_text = pytesseract.image_to_data(image, config=r'--oem 3 --psm 4', lang='rus+eng+gre', output_type=pytesseract.Output.DICT)
 
         blocks = []
         current_block = []
@@ -83,10 +83,18 @@ class OCRThread(QThread):
             stop_ocr()
             self.show_warning_signal.emit("Не видно вопроса. Остановка распознавания.")
 
-def find_answer(query):
-    global attempts, finded, window
-    best_match, best_score = None, 0
+import pyautogui  # Для управления курсором
+from difflib import SequenceMatcher 
 
+def find_answer(query):
+    global attempts, finded, window, raw_text
+    best_match, best_score = None, 0
+    matched_coordinates = []
+
+    # Флаг для отображения вопросов только один раз
+    question_displayed = False
+
+    # Поиск наиболее подходящего вопроса
     for question_text in questions_answers.keys():
         score = jaccard_index(query, question_text)
         if score > best_score:
@@ -95,20 +103,64 @@ def find_answer(query):
 
     if best_score > 0.5 and best_match:
         answer_text = ""
+
         for i, answer_group in enumerate(questions_answers[best_match]):
-            if i > 0: 
-                answer_text += "\nSили\n"
+            if i > 0:
+                answer_text += "\nИли\n"
             answer_text += "\n".join(answer_group)
 
-        question_label.setText(f"Вопрос: {best_match}")
-        answer_label.setText(f"Ответы:\n{answer_text}")
-        
-        #window.adjustSize()
+            # Поиск блоков текста в raw_text и их сравнение с ответами
+            blocks = []
+            current_block = []
+            for i, word in enumerate(raw_text['text']):
+                if word.strip():
+                    current_block.append(word)
+                if i == len(raw_text['text']) - 1 or raw_text['level'][i + 1] != raw_text['level'][i]:
+                    blocks.append(" ".join(current_block))
+                    current_block = []
+
+            # Теперь сравниваем блоки текста с ответами
+            for answer in answer_group:
+                answer = re.sub(r'^.{0,3}', '', answer)  # Убираем первые 3 символа из ответа
+                for block in blocks:
+                    if similarity(block, answer) >= 0.72:  # Совпадение >= 72%
+                        # Находим координаты первого слова из блока
+                        block_words = block.split()
+                        word = block_words[0]
+                        for j, word_raw  in enumerate(raw_text['text']):
+                            if word_raw == word:
+                                left = raw_text['left'][j]
+                                top = raw_text['top'][j]
+                                width = raw_text['width'][j]
+                                height = raw_text['height'][j]
+                                center_x = left + width // 2
+                                center_y = top + height // 2
+                                matched_coordinates.append((left-20, top+20))
+                                break  # Останавливаемся на первом совпавшем слове
+
+        if not question_displayed:
+            question_label.setText(f"Вопрос: {best_match}")
+            question_displayed = True  # Устанавливаем флаг, что вопрос был показан
+        #answer_label.setText(f"Ответы:\n{answer_text}")
+
+        # Наводим мышь на ответы
+        for coord in matched_coordinates:
+            pyautogui.moveTo(coord[0], coord[1])
+            pyautogui.click()
+            time.sleep(0.5)  # Небольшая задержка для визуализации перемещения
+
         finded = True
         attempts = 0
     else:
         question_label.setText("Вопрос не найден")
         answer_label.setText("")
+
+def similarity(str1, str2):
+    """
+    Вычисляет схожесть двух строк с использованием SequenceMatcher.
+    Возвращает значение от 0 до 1.
+    """
+    return SequenceMatcher(None, str1, str2).ratio()
 
 def start_ocr():
     global attempts, start
