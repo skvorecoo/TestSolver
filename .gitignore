@@ -3,3 +3,4 @@ build
 tesseract
 main.spec
 .venv
+*.png
