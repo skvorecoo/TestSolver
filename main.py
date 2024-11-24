@@ -25,7 +25,7 @@ REPLACEMENT_DICT = {
 
 def keep_black_only(image):
     grayscale_image = image.convert("L")
-    binary_image = grayscale_image.point(lambda x: 0 if x < 70 else 255, '1')
+    binary_image = grayscale_image.point(lambda x: 0 if x < 255 else 255, '1')
     return binary_image.convert("RGB")
 
 def replace_with_russian(text):
@@ -51,7 +51,7 @@ class OCRThread(QThread):
 
         black_image = keep_black_only(image)
 
-        raw_text = pytesseract.image_to_data(image, config=r'--oem 3 --psm 4', lang='rus+eng+gre', output_type=pytesseract.Output.DICT)
+        raw_text = pytesseract.image_to_data(black_image, config=r'--oem 3 --psm 4 --dpi 185', lang='rus+eng+gre', output_type=pytesseract.Output.DICT)
 
         blocks = []
         current_block = []
@@ -97,13 +97,12 @@ def find_answer(query):
         answer_text = ""
         for i, answer_group in enumerate(questions_answers[best_match]):
             if i > 0: 
-                answer_text += "\nSили\n"
+                answer_text += "\n\nили\n\n"
             answer_text += "\n".join(answer_group)
 
         question_label.setText(f"Вопрос: {best_match}")
         answer_label.setText(f"Ответы:\n{answer_text}")
         
-        #window.adjustSize()
         finded = True
         attempts = 0
     else:
@@ -118,7 +117,7 @@ def start_ocr():
     status_label.setStyleSheet("color: green;") 
     while start:
         ocr_thread.run()
-        time.sleep(1)
+        #time.sleep(1)
 
 def stop_ocr():
     global start
