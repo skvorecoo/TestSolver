@@ -1,4 +1,5 @@
 import pytesseract, mss, requests, re, os, time, threading, sys
+import subprocess
 from PIL import Image
 from bs4 import BeautifulSoup
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
@@ -7,10 +8,10 @@ from PyQt6.QtGui import QIcon
 
 workingDir = os.path.dirname(os.path.abspath(__file__))
 
-pytesseract.pytesseract.tesseract_cmd = workingDir + "/tesseract" + "/tesseract.exe"
-
-if getattr(sys, 'frozen', False): 
-    os.environ['TESSDATA_PREFIX'] = workingDir + "/tesseract"
+if sys.platform == 'win32':
+    pytesseract.pytesseract.tesseract_cmd = workingDir + "/tesseract" + "/tesseract.exe"
+    if getattr(sys, 'frozen', False): 
+        os.environ['TESSDATA_PREFIX'] = workingDir + "/tesseract"
 
 questions_answers = {}
 
@@ -44,10 +45,17 @@ class OCRThread(QThread):
 
     def run(self):
         global attempts, finded
-        with mss.mss() as sct:
-            # Скриншот всего экрана
-            screenshot = sct.grab(sct.monitors[1])
-            image = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
+
+        if sys.platform == 'win32':
+            with mss.mss() as sct:
+                # Скриншот всего экрана
+                screenshot = sct.grab(sct.monitors[1])
+                image = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
+
+        else:
+            subprocess.run(["spectacle", "-b", "-o", "screenshot.png"])
+
+        image = Image.open("screenshot.png")
 
         black_image = keep_black_only(image)
 
@@ -111,6 +119,7 @@ def find_answer(query):
 
 def start_ocr():
     global attempts, start
+    ocr_button.setEnabled(False)
     attempts = 0 
     start = True
     status_label.setText("Статус: Запущен") 
@@ -121,6 +130,7 @@ def start_ocr():
 
 def stop_ocr():
     global start
+    ocr_button.setEnabled(True)
     status_label.setText("Статус: Остановлено")
     status_label.setStyleSheet("color: red;")
     question_label.setText("")
