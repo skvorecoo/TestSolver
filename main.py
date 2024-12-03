@@ -9,8 +9,8 @@ from PyQt6.QtGui import QIcon
 workingDir = os.path.dirname(os.path.abspath(__file__))
 
 if sys.platform == 'win32':
-    pytesseract.pytesseract.tesseract_cmd = workingDir + "/tesseract" + "/tesseract.exe"
     if getattr(sys, 'frozen', False): 
+        pytesseract.pytesseract.tesseract_cmd = workingDir + "/tesseract" + "/tesseract.exe"
         os.environ['TESSDATA_PREFIX'] = workingDir + "/tesseract"
 
 questions_answers = {}
@@ -54,8 +54,7 @@ class OCRThread(QThread):
 
         else:
             subprocess.run(["spectacle", "-b", "-o", "screenshot.png"])
-
-        image = Image.open("screenshot.png")
+            image = Image.open("screenshot.png")
 
         black_image = keep_black_only(image)
 
